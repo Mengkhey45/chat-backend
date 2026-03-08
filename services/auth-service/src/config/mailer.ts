@@ -1,6 +1,5 @@
-
 /**
- * Email Service (short version)
+ * Email Service Configuration
  */
 
 import nodemailer from "nodemailer";
@@ -8,9 +7,6 @@ import type { Transporter, SentMessageInfo } from "nodemailer";
 
 let transporter: Transporter | null = null;
 
-/**
- * Initialize email transporter
- */
 interface MailEnv {
   SMTP_HOST: string;
   SMTP_PORT: string | number;
@@ -19,35 +15,36 @@ interface MailEnv {
   SMTP_PASS: string;
 }
 
+/**
+ * Initialize the email transporter with robust settings for cloud environments.
+ */
 export const initMailer = async (env: MailEnv): Promise<void> => {
-  const isSecure = env.SMTP_SECURE === "true" || env.SMTP_PORT === "465";
-  
-  console.log(`📧 Configuring Mailer: ${env.SMTP_HOST}:${env.SMTP_PORT} (Secure: ${isSecure})`);
-  
+  const port = Number(env.SMTP_PORT) || 587;
+  // port 465 uses secure: true (Implicit TLS), port 587 uses secure: false (STARTTLS)
+  const isSecure = env.SMTP_SECURE === "true" || port === 465;
+
+  console.log(`[Mailer] Initializing: ${env.SMTP_HOST}:${port} (Secure: ${isSecure})`);
+
   transporter = nodemailer.createTransport({
     host: env.SMTP_HOST,
-    port: Number(env.SMTP_PORT) || 587,
+    port: port,
     secure: isSecure,
     auth: {
       user: env.SMTP_USER,
       pass: env.SMTP_PASS,
     },
-    // Increased timeouts for Railway environment
-    connectionTimeout: 20000, 
-    greetingTimeout: 20000,
-    socketTimeout: 20000,
-    dnsTimeout: 10000,
-    // Add debugging
-    debug: true,
-    logger: true
+    // Reliability settings for Railway/Cloud
+    connectionTimeout: 15000, 
+    greetingTimeout: 15000,
+    socketTimeout: 30000,
+    tls: {
+      // Do not fail on invalid certs
+      rejectUnauthorized: false
+    }
   });
-  
-  console.log("📧 Email service configured (verification skipped)");
-};
 
-/**
- * Send email
- */
+  console.log("📧 Email service initialized (verification deferred)");
+};
 
 interface MailOptions {
   to: string;
@@ -56,38 +53,34 @@ interface MailOptions {
   text?: string;
 }
 
+/**
+ * Sends an email and provides detailed logging for debugging.
+ */
 export const sendMail = async (options: MailOptions): Promise<SentMessageInfo> => {
   if (!transporter) {
-    console.error("❌ Email service not initialized - transporter is null");
+    console.error("[Mailer] CRITICAL: Service not initialized.");
     throw new Error("Email service not initialized");
   }
 
+  const from = process.env.EMAIL_FROM || process.env.SMTP_USER || 'noreply@app.com';
+
   try {
-    const from = process.env.EMAIL_FROM || process.env.SMTP_USER;
-    console.log(`📧 Attempting to send email from ${from} to ${options.to}...`);
+    console.log(`[Mailer] Sending "${options.subject}" to: ${options.to}`);
     
     const info = await transporter.sendMail({
-      from: from,
+      from: `Discord Chat <${from}>`,
       to: options.to,
       subject: options.subject,
       text: options.text,
       html: options.html,
     });
     
-    console.log(`📧 Email sent successfully! ID: ${info.messageId}`);
+    console.log(`[Mailer] SUCCESS: Email sent (ID: ${info.messageId})`);
     return info;
   } catch (error: any) {
-    console.error("❌ CRITICAL: Failed to send email via nodemailer:");
-    console.error("   Error Message:", error.message);
-    console.error("   Error Code:", error.code);
-    console.error("   SMTP Config Used:", {
-      host: process.env.SMTP_HOST,
-      port: process.env.SMTP_PORT,
-      user: process.env.SMTP_USER,
-      secure: process.env.SMTP_SECURE === "true"
-    });
+    console.error(`[Mailer] ERROR: Failed to send to ${options.to}`);
+    console.error(`  - Reason: ${error.message}`);
+    console.error(`  - Code: ${error.code}`);
     throw error;
   }
 };
-
-// ...existing code...
