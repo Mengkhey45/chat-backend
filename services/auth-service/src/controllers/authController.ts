@@ -23,7 +23,7 @@ const CONFIG = {
  */
 export const signup = async (req: Request, res: Response): Promise<void> => {
   try {
-
+    console.log('[Signup] Starting signup for:', req.body.email);
     const { email, password, name } = signupSchema.parse(req.body);
 
     const existing = await User.findOne({ email });
@@ -34,6 +34,8 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
 
     const passwordHash = await bcrypt.hash(password, CONFIG.BCRYPT_SALT_ROUNDS);
     const code = generateNumericCode();
+    
+    console.log('[Signup] Creating user in database...');
     const user = await User.create({
       email,
       name,
@@ -42,10 +44,24 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
       emailVerification: { codeHash: hashCode(code), expiresAt: addMinutes(new Date(), CONFIG.CODE_EXPIRES_MIN) },
     });
 
-    await sendVerificationEmail(email, code);
-    res.status(201).json({ message: "Account created, check your email" });
-  } catch (err) {
-    res.status(500).json({ error: "Signup failed" });
+    console.log('[Signup] User created. Attempting to send verification email...');
+    try {
+      await sendVerificationEmail(email, code);
+      console.log('[Signup] Verification email sent successfully');
+    } catch (emailErr: any) {
+      console.error('[Signup] FAILED to send verification email:', emailErr.message);
+      // We don't return 500 here so the user is still created.
+      // They can try "resend verification" later.
+    }
+
+    res.status(201).json({ 
+      message: "Account created successfully", 
+      email: email,
+      note: "If you don't receive an email, please try 'Resend Verification' later."
+    });
+  } catch (err: any) {
+    console.error('[Signup] CRITICAL ERROR:', err);
+    res.status(500).json({ error: "Signup failed", details: err.message });
   }
 };
 
