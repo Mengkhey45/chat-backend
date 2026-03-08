@@ -35,6 +35,8 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
     const passwordHash = await bcrypt.hash(password, CONFIG.BCRYPT_SALT_ROUNDS);
     const code = generateNumericCode();
     
+    console.log(`[Signup] IMPORTANT: Verification code for ${email} is: ${code}`);
+    
     console.log('[Signup] Creating user in database...');
     const user = await User.create({
       email,
@@ -57,7 +59,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
     res.status(201).json({ 
       message: "Account created successfully", 
       email: email,
-      note: "If you don't receive an email, please try 'Resend Verification' later."
+      note: "If you don't receive an email, please check the system logs for your code."
     });
   } catch (err: any) {
     console.error('[Signup] CRITICAL ERROR:', err);

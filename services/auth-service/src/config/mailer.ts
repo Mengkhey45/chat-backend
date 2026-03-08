@@ -20,22 +20,28 @@ interface MailEnv {
 }
 
 export const initMailer = async (env: MailEnv): Promise<void> => {
+  const isSecure = env.SMTP_SECURE === "true" || env.SMTP_PORT === "465";
+  
+  console.log(`📧 Configuring Mailer: ${env.SMTP_HOST}:${env.SMTP_PORT} (Secure: ${isSecure})`);
+  
   transporter = nodemailer.createTransport({
     host: env.SMTP_HOST,
     port: Number(env.SMTP_PORT) || 587,
-    secure: env.SMTP_SECURE === "true",
+    secure: isSecure,
     auth: {
       user: env.SMTP_USER,
       pass: env.SMTP_PASS,
     },
-    // Add a short timeout to prevent hanging the whole server
-    connectionTimeout: 10000, 
-    greetingTimeout: 10000,
-    socketTimeout: 10000
+    // Increased timeouts for Railway environment
+    connectionTimeout: 20000, 
+    greetingTimeout: 20000,
+    socketTimeout: 20000,
+    dnsTimeout: 10000,
+    // Add debugging
+    debug: true,
+    logger: true
   });
   
-  // Temporarily skip verification to allow server to start
-  // await transporter.verify();
   console.log("📧 Email service configured (verification skipped)");
 };
 
@@ -77,7 +83,8 @@ export const sendMail = async (options: MailOptions): Promise<SentMessageInfo> =
     console.error("   SMTP Config Used:", {
       host: process.env.SMTP_HOST,
       port: process.env.SMTP_PORT,
-      user: process.env.SMTP_USER
+      user: process.env.SMTP_USER,
+      secure: process.env.SMTP_SECURE === "true"
     });
     throw error;
   }
