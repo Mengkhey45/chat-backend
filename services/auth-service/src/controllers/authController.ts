@@ -162,16 +162,39 @@ export const resendVerification = async (req: Request, res: Response): Promise<v
 export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email } = forgotPasswordSchema.parse(req.body);
+    console.log('[ForgotPassword] Request received for:', email);
+    
     const user = await User.findOne({ email });
-    if (user) {
-      const code = generateNumericCode();
-      user.passwordReset = { codeHash: hashCode(code), expiresAt: addMinutes(new Date(), CONFIG.CODE_EXPIRES_MIN) };
-      await user.save();
-      await sendResetEmail(email, code);
+    if (!user) {
+      console.log('[ForgotPassword] No user found with email:', email);
+      // Still return success to prevent email enumeration
+      res.json({ message: "If account exists, reset code sent" });
+      return;
     }
+
+    const code = generateNumericCode();
+    console.log('[ForgotPassword] User found. Generated code:', code);
+    
+    user.passwordReset = { 
+      codeHash: hashCode(code), 
+      expiresAt: addMinutes(new Date(), CONFIG.CODE_EXPIRES_MIN) 
+    };
+    
+    await user.save();
+    console.log('[ForgotPassword] Reset code saved to database.');
+
+    try {
+      await sendResetEmail(email, code);
+      console.log('[ForgotPassword] Reset email sent successfully to:', email);
+    } catch (emailErr: any) {
+      console.error('[ForgotPassword] FAILED to send reset email:', emailErr.message);
+      // We still return success but log the failure internally
+    }
+
     res.json({ message: "If account exists, reset code sent" });
-  } catch {
-    res.status(500).json({ error: "Request failed" });
+  } catch (err: any) {
+    console.error('[ForgotPassword] CRITICAL ERROR:', err);
+    res.status(500).json({ error: "Request failed", details: err.message });
   }
 };
 
