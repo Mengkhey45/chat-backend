@@ -28,9 +28,15 @@ export const initMailer = async (env: MailEnv): Promise<void> => {
       user: env.SMTP_USER,
       pass: env.SMTP_PASS,
     },
+    // Add a short timeout to prevent hanging the whole server
+    connectionTimeout: 5000, 
+    greetingTimeout: 5000,
+    socketTimeout: 5000
   });
-  await transporter.verify();
-  console.log("📧 Email service initialized");
+  
+  // Temporarily skip verification to allow server to start
+  // await transporter.verify();
+  console.log("📧 Email service configured (verification skipped)");
 };
 
 /**
