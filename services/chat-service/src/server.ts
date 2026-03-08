@@ -22,7 +22,23 @@ app.use((req, res, next) => {
 });
 
 // 2. Standard Middleware
-app.use(cors());
+const allowedOrigins = [
+  'http://localhost:3000',
+  'https://richguyovn-chat.vercel.app',
+  'https://richguyovn-chat-h01xky915-mengkheys-projects.vercel.app'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      console.warn(`[CORS] ChatService Request from unauthorized origin: ${origin}`);
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
+  credentials: true
+}));
 app.use(express.json());
 
 // 3. REST API Routes
