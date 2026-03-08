@@ -14,45 +14,37 @@ import apiRoutes from './routes/api';
 const app = express();
 const httpServer = createServer(app);
 
-// 1. Traceability Header - Helps confirm which service is responding
+// 1. CORS MUST BE FIRST
+app.use(cors({
+  origin: function (origin, callback) {
+    callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
+}));
+
+// 2. Traceability Header - Helps confirm which service is responding
 app.use((req, res, next) => {
   res.setHeader('X-Service-Name', 'chat-service');
-  console.log(`[ChatService] Incoming: ${req.method} ${req.url}`);
+  console.log(`[ChatService] Incoming: ${req.method} ${req.url}`, {
+    origin: req.get('Origin')
+  });
   next();
 });
 
-// 2. Standard Middleware
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://richguyovn-chat.vercel.app',
-  'https://richguyovn-chat-h01xky915-mengkheys-projects.vercel.app'
-];
-
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      console.warn(`[CORS] ChatService Request from unauthorized origin: ${origin}`);
-      return callback(null, true);
-    }
-    return callback(null, true);
-  },
-  credentials: true
-}));
+// 3. Standard Middleware
 app.use(express.json());
 
-// 3. REST API Routes
-// Handle requests arriving with /api/chat prefix (passed by Nginx)
+// 4. REST API Routes
 app.use('/api/chat', apiRoutes);
-// Handle requests arriving with /api prefix (in case Nginx strips /chat)
 app.use('/api', apiRoutes);
-// Handle direct requests
 app.use('/', apiRoutes);
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok', service: 'chat-service' }));
 
-// 4. Custom 404
+// 5. Custom 404
 app.use((req, res) => {
   console.warn(`[ChatService] 404: ${req.method} ${req.url}`);
   res.status(404).json({ 

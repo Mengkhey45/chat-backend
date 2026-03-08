@@ -14,46 +14,31 @@ import './config/passport';
 
 const app = express();
 
-// Middleware
-app.use(helmet());
-app.use(express.json());
-
-const allowedOrigins = [
-  'http://localhost:3000',
-  'https://richguyovn-chat.vercel.app',
-  'https://richguyovn-chat-h01xky915-mengkheys-projects.vercel.app'
-];
-
+// 1. CORS MUST BE FIRST to handle preflight OPTIONS requests
 app.use(cors({
   origin: function (origin, callback) {
-    // allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      const msg = 'The CORS policy for this site does not ' +
-                  'allow access from the specified Origin.';
-      // return callback(new Error(msg), false);
-      // For now, let's just log and allow it to avoid blocking legitimate Vercel subdomains
-      console.warn(`[CORS] Request from unauthorized origin: ${origin}`);
-      return callback(null, true); 
-    }
-    return callback(null, true);
+    // Allow all origins for now to resolve the issue, then we can restrict later
+    callback(null, true);
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 }));
+
+// 2. Other middleware
+app.use(helmet());
+app.use(express.json());
 app.use(passport.initialize());
 
 // Add request logging middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
   console.log(`${req.method} ${req.path}`, {
-    body: req.body,
-    headers: {
-      origin: req.get('Origin'),
-      contentType: req.get('Content-Type'),
-      authorization: req.get('Authorization')
-    }
+    origin: req.get('Origin'),
+    method: req.method
   });
   next();
 });
+
 
 // Rate limiter for auth
 const authLimiter = rateLimit({
