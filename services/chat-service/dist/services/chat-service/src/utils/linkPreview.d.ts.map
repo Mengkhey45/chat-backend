@@ -1,0 +1,1 @@
+{"version":3,"file":"linkPreview.d.ts","sourceRoot":"","sources":["../../../../../src/utils/linkPreview.ts"],"names":[],"mappings":"AAEA,MAAM,WAAW,WAAW;IAC1B,GAAG,EAAE,MAAM,CAAC;IACZ,KAAK,CAAC,EAAE,MAAM,CAAC;IACf,WAAW,CAAC,EAAE,MAAM,CAAC;IACrB,KAAK,CAAC,EAAE,MAAM,CAAC;CAChB;AAED,wBAAsB,gBAAgB,CAAC,GAAG,EAAE,MAAM,GAAG,OAAO,CAAC,WAAW,GAAG,IAAI,CAAC,CAiB/E"}

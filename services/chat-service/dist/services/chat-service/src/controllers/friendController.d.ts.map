@@ -1,0 +1,1 @@
+{"version":3,"file":"friendController.d.ts","sourceRoot":"","sources":["../../../../../src/controllers/friendController.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,OAAO,EAAE,QAAQ,EAAE,MAAM,SAAS,CAAC;AAMjD,UAAU,oBAAqB,SAAQ,OAAO;IAC5C,IAAI,EAAE;QACJ,MAAM,EAAE,MAAM,CAAC;KAEhB,CAAC;CACH;AAED,eAAO,MAAM,mBAAmB,GAAU,KAAK,oBAAoB,EAAE,KAAK,QAAQ,4DAkCjF,CAAC"}
