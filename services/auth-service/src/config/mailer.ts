@@ -1,12 +1,14 @@
 /**
  * Email Service Configuration
- * Optimized for Gmail and Cloud Environments
+ * Support for Resend (Production API) and Gmail (Local SMTP)
  */
 
 import nodemailer from "nodemailer";
+import { Resend } from 'resend';
 import type { Transporter, SentMessageInfo } from "nodemailer";
 
 let transporter: Transporter | null = null;
+let resend: Resend | null = null;
 
 interface MailEnv {
   SMTP_HOST: string;
@@ -14,28 +16,28 @@ interface MailEnv {
   SMTP_SECURE: string;
   SMTP_USER: string;
   SMTP_PASS: string;
+  RESEND_API_KEY?: string;
 }
 
 /**
- * Initialize the email transporter.
- * Uses the 'gmail' service preset for maximum compatibility.
+ * Initialize the email service.
+ * Prefers Resend API if RESEND_API_KEY is present, otherwise falls back to Gmail SMTP.
  */
 export const initMailer = async (env: MailEnv): Promise<void> => {
-  console.log(`[Mailer] Initializing for ${env.SMTP_USER} using Gmail service...`);
+  if (env.RESEND_API_KEY) {
+    console.log("[Mailer] Initializing with Resend API (Recommended for Production)");
+    resend = new Resend(env.RESEND_API_KEY);
+    return;
+  }
 
+  console.log(`[Mailer] Initializing with Gmail SMTP: ${env.SMTP_USER}`);
   transporter = nodemailer.createTransport({
-    service: 'gmail', // Standard Gmail preset
+    service: 'gmail',
     auth: {
       user: env.SMTP_USER,
       pass: env.SMTP_PASS,
     },
-    pool: true, // Use connection pooling
-    maxConnections: 3,
-    maxMessages: 100,
-    connectionTimeout: 20000, // 20 seconds
   });
-
-  console.log("📧 Email service initialized");
 };
 
 interface MailOptions {
@@ -46,28 +48,51 @@ interface MailOptions {
 }
 
 /**
- * Sends an email with detailed logging.
+ * Sends an email using the available service.
  */
-export const sendMail = async (options: MailOptions): Promise<SentMessageInfo> => {
-  if (!transporter) {
-    throw new Error("Email service not initialized.");
+export const sendMail = async (options: MailOptions): Promise<any> => {
+  const fromEmail = process.env.EMAIL_FROM || process.env.SMTP_USER || 'onboarding@resend.dev';
+  const fromName = "Discord Chat";
+
+  // 1. Try Resend (API based, works on Railway)
+  if (resend) {
+    try {
+      console.log(`[Mailer] Sending via Resend API to: ${options.to}`);
+      const { data, error } = await resend.emails.send({
+        from: `${fromName} <${fromEmail}>`,
+        to: options.to,
+        subject: options.subject,
+        html: options.html || '',
+        text: options.text || '',
+      });
+
+      if (error) throw error;
+      console.log(`[Mailer] SUCCESS: Email sent via Resend ID: ${data?.id}`);
+      return data;
+    } catch (error: any) {
+      console.error(`[Mailer] Resend ERROR: ${error.message}`);
+      throw error;
+    }
   }
 
-  const fromAddress = process.env.EMAIL_FROM || process.env.SMTP_USER;
-
-  try {
-    const info = await transporter.sendMail({
-      from: `"Discord Chat" <${fromAddress}>`,
-      to: options.to,
-      subject: options.subject,
-      text: options.text,
-      html: options.html,
-    });
-    
-    console.log(`[Mailer] SUCCESS: Email sent to ${options.to}`);
-    return info;
-  } catch (error: any) {
-    console.error(`[Mailer] ERROR: ${error.message}`);
-    throw error;
+  // 2. Fallback to Nodemailer (SMTP based, works locally)
+  if (transporter) {
+    try {
+      console.log(`[Mailer] Sending via SMTP to: ${options.to}`);
+      const info = await transporter.sendMail({
+        from: `"${fromName}" <${fromEmail}>`,
+        to: options.to,
+        subject: options.subject,
+        text: options.text,
+        html: options.html,
+      });
+      console.log(`[Mailer] SUCCESS: Email sent via SMTP ID: ${info.messageId}`);
+      return info;
+    } catch (error: any) {
+      console.error(`[Mailer] SMTP ERROR: ${error.message}`);
+      throw error;
+    }
   }
+
+  throw new Error("Mailer not initialized. Check your environment variables.");
 };
