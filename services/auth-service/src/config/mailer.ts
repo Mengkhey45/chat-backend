@@ -16,14 +16,19 @@ interface MailEnv {
 }
 
 /**
- * Initialize the email transporter with robust settings for cloud environments.
+ * Initialize the email transporter.
+ * NOTE: Cloud providers like Railway often block port 465. 
+ * Port 587 with SMTP_SECURE=false is recommended.
  */
 export const initMailer = async (env: MailEnv): Promise<void> => {
-  const port = Number(env.SMTP_PORT) || 587;
-  // port 465 uses secure: true (Implicit TLS), port 587 uses secure: false (STARTTLS)
-  const isSecure = env.SMTP_SECURE === "true" || port === 465;
+  let port = Number(env.SMTP_PORT) || 587;
+  let isSecure = env.SMTP_SECURE === "true";
 
-  console.log(`[Mailer] Initializing: ${env.SMTP_HOST}:${port} (Secure: ${isSecure})`);
+  // Auto-fix: If port is 465, it MUST be secure. If 587, it MUST NOT be secure (it uses STARTTLS).
+  if (port === 465) isSecure = true;
+  if (port === 587) isSecure = false;
+
+  console.log(`[Mailer] Initializing: ${env.SMTP_HOST}:${port} (SSL/TLS: ${isSecure})`);
 
   transporter = nodemailer.createTransport({
     host: env.SMTP_HOST,
@@ -33,17 +38,15 @@ export const initMailer = async (env: MailEnv): Promise<void> => {
       user: env.SMTP_USER,
       pass: env.SMTP_PASS,
     },
-    // Reliability settings for Railway/Cloud
-    connectionTimeout: 15000, 
-    greetingTimeout: 15000,
-    socketTimeout: 30000,
+    connectionTimeout: 10000, // 10 seconds
+    greetingTimeout: 10000,
+    socketTimeout: 20000,
     tls: {
-      // Do not fail on invalid certs
-      rejectUnauthorized: false
+      rejectUnauthorized: false // Helps with self-signed certs in some environments
     }
   });
 
-  console.log("📧 Email service initialized (verification deferred)");
+  console.log("📧 Email service ready");
 };
 
 interface MailOptions {
@@ -54,33 +57,34 @@ interface MailOptions {
 }
 
 /**
- * Sends an email and provides detailed logging for debugging.
+ * Sends an email with detailed logging.
  */
 export const sendMail = async (options: MailOptions): Promise<SentMessageInfo> => {
   if (!transporter) {
-    console.error("[Mailer] CRITICAL: Service not initialized.");
-    throw new Error("Email service not initialized");
+    throw new Error("Email service not initialized. Call initMailer first.");
   }
 
-  const from = process.env.EMAIL_FROM || process.env.SMTP_USER || 'noreply@app.com';
+  const fromAddress = process.env.EMAIL_FROM || process.env.SMTP_USER;
 
   try {
-    console.log(`[Mailer] Sending "${options.subject}" to: ${options.to}`);
-    
     const info = await transporter.sendMail({
-      from: `Discord Chat <${from}>`,
+      from: `"Discord Chat" <${fromAddress}>`,
       to: options.to,
       subject: options.subject,
       text: options.text,
       html: options.html,
     });
     
-    console.log(`[Mailer] SUCCESS: Email sent (ID: ${info.messageId})`);
+    console.log(`[Mailer] SUCCESS: "${options.subject}" sent to ${options.to}`);
     return info;
   } catch (error: any) {
     console.error(`[Mailer] ERROR: Failed to send to ${options.to}`);
-    console.error(`  - Reason: ${error.message}`);
-    console.error(`  - Code: ${error.code}`);
+    console.error(`  - Message: ${error.message}`);
+    
+    if (error.code === 'ETIMEDOUT' && process.env.SMTP_PORT === '465') {
+      console.error(`  - TIP: Port 465 is timed out. PLEASE CHANGE SMTP_PORT TO 587 IN RAILWAY VARIABLES.`);
+    }
+    
     throw error;
   }
 };
