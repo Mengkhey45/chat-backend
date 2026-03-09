@@ -130,7 +130,7 @@ async function startServer() {
     redisClient = pubClient;
 
     const queueConnection = new Redis(REDIS_URL, { maxRetriesPerRequest: null });
-    notificationQueue = new Queue('notification-queue', { connection: queueConnection });
+    notificationQueue = new Queue('notification-queue', { connection: queueConnection as any });
 
     // Start notification worker
     try {
@@ -149,7 +149,7 @@ async function startServer() {
   // Socket.IO connection handler
   io.on('connection', (socket) => {
     if (notificationQueue && redisClient) {
-      registerChatHandlers(io, socket, notificationQueue, redisClient);
+      registerChatHandlers(io, socket, notificationQueue as any, redisClient);
     } else {
       console.warn('Socket connected but Redis/Queue unavailable — limited functionality');
       socket.disconnect();
