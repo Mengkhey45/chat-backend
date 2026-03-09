@@ -86,7 +86,8 @@ let notificationQueue: Queue | null = null;
 let redisClient: any = null;
 
 const io = new Server(httpServer, {
-  cors: { origin: '*' }
+  cors: { origin: '*' },
+  maxHttpBufferSize: 10 * 1024 * 1024, // 10MB for file transfers
 });
 
 // Socket.IO auth middleware

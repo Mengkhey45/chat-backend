@@ -11,6 +11,9 @@ export interface IMessage extends Document {
   conversationId: Types.ObjectId;
   sender: Types.ObjectId;
   text: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileType?: string;
   attachments?: string[]; // Array of URLs (Cloudflare R2)
   readBy: Types.ObjectId[];
   isDeleted?: boolean;
@@ -51,9 +54,12 @@ const messageSchema = new Schema<IMessage>({
   },
   text: { 
     type: String, 
-    required: true,
+    default: '',
     trim: true 
   },
+  fileUrl: { type: String },
+  fileName: { type: String },
+  fileType: { type: String },
   attachments: [{ 
     type: String 
   }],

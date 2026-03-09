@@ -33,10 +33,13 @@ export const registerChatHandlers = (
   // --- SEND MESSAGE (Aligned with Frontend 'message:send') ---
   socket.on('message:send', async (data: { 
     conversationId: string, 
-    content: string 
+    content: string,
+    fileData?: string,
+    fileName?: string,
+    fileType?: string,
   }) => {
     try {
-      const urlMatch = data.content.match(/https?:\/\/[\w\-._~:/?#[\]@!$&'()*+,;=%]+/i);
+      const urlMatch = data.content?.match(/https?:\/\/[\w\-._~:/?#[\]@!$&'()*+,;=%]+/i);
       let linkPreview: any = null;
       if (urlMatch) {
         linkPreview = await fetchLinkPreview(urlMatch[0]);
@@ -52,17 +55,23 @@ export const registerChatHandlers = (
       const newMessage = await Message.create({
         conversationId: data.conversationId,
         sender: userId,
-        text: data.content,
+        text: data.content || '',
+        fileUrl: data.fileData,
+        fileName: data.fileName,
+        fileType: data.fileType,
         linkPreview: linkPreview || undefined
-      });
+      } as any);
 
       const messagePayload = {
-        id: newMessage._id.toString(),
+        id: (newMessage as any)._id.toString(),
         conversationId: data.conversationId,
-        content: data.content,
+        content: data.content || '',
         senderId: userId,
         senderName,
-        createdAt: newMessage.createdAt,
+        fileUrl: data.fileData,
+        fileName: data.fileName,
+        fileType: data.fileType,
+        createdAt: (newMessage as any).createdAt,
         isRead: false,
         linkPreview
       };
@@ -72,7 +81,7 @@ export const registerChatHandlers = (
 
       // Update Conversation lastMessage
       await Conversation.findByIdAndUpdate(data.conversationId, {
-        lastMessage: newMessage._id
+        lastMessage: (newMessage as any)._id
       });
 
       // Unread badge logic (only if Redis available)
