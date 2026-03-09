@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "pnpm --recursive run build",
-    "start": "tsx unified-server.ts"
+    "build": "tsc",
+    "start": "node dist/unified-server.js"
   },
   "keywords": [],
   "author": "",
