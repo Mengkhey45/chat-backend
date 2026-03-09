@@ -115,6 +115,49 @@ export const sendFriendRequest = async (req: AuthenticatedRequest, res: Response
   }
 };
 
+export const getUserPublicInfo = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findById(userId).select('name email avatar');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    res.json({ id: user._id.toString(), name: (user as any).name, email: (user as any).email, avatar: (user as any).avatar });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch user' });
+  }
+};
+
+export const checkFriendStatus = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const currentUserId = req.user?.userId;
+    const targetUserId = req.params.userId as string;
+    if (!currentUserId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const currentOid = new Types.ObjectId(currentUserId);
+    const targetOid = new Types.ObjectId(targetUserId);
+
+    const request = await FriendRequest.findOne({
+      $or: [
+        { sender: currentOid, receiver: targetOid },
+        { sender: targetOid, receiver: currentOid }
+      ]
+    } as any);
+
+    if (!request) {
+      return res.json({ status: 'none' });
+    }
+
+    // Determine direction
+    const isSender = request.sender.toString() === currentUserId;
+    res.json({
+      status: request.status, // 'pending', 'accepted', 'rejected'
+      direction: isSender ? 'outgoing' : 'incoming',
+      requestId: request._id.toString()
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to check friend status' });
+  }
+};
+
 export const handleFriendRequest = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { requestId } = req.params;

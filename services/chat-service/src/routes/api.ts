@@ -19,7 +19,11 @@ router.get('/messages/:conversationId', messageController.getMessagesByConversat
 // Friend Routes
 router.get('/friends', friendController.getFriends);
 router.get('/friends/requests', friendController.getPendingRequests);
+router.get('/friends/status/:userId', friendController.checkFriendStatus);
 router.post('/friends/request', friendController.sendFriendRequest);
 router.put('/friends/request/:requestId', friendController.handleFriendRequest);
+
+// User lookup
+router.get('/users/:userId', friendController.getUserPublicInfo);
 
 export default router;
