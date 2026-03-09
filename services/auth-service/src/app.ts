@@ -70,7 +70,8 @@ const startServer = async () => {
       SMTP_PORT: Number(process.env.SMTP_PORT ?? 587),
       SMTP_SECURE: process.env.SMTP_SECURE ?? 'false',
       SMTP_USER: process.env.SMTP_USER ?? '',
-      SMTP_PASS: process.env.SMTP_PASS ?? ''
+      SMTP_PASS: process.env.SMTP_PASS ?? '',
+      RESEND_API_KEY: process.env.RESEND_API_KEY
     });
     // Note: connectDB ignores the passed URI and reads from process.env.MONGO_URI internally
     await connectDB();
