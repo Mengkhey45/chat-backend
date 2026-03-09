@@ -139,7 +139,8 @@ export const signin = async (req: Request, res: Response): Promise<void> => {
       user: { id: user._id.toString(), email: user.email, name: user.name } 
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Signin failed." });
+    console.error('[Signin] Error:', err);
+    res.status(500).json({ error: "Signin failed", details: err.message });
   }
 };
 
@@ -174,7 +175,8 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
 
     res.json({ message: "If account exists, a reset code was sent." });
   } catch (err: any) {
-    res.status(500).json({ error: "Request failed." });
+    console.error('[ForgotPassword] Error:', err);
+    res.status(500).json({ error: "Request failed", details: err.message });
   }
 };
 
