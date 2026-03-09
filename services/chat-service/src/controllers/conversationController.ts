@@ -13,7 +13,7 @@ export const getConversations = async (req: AuthenticatedRequest, res: Response)
     const conversations = await Conversation.find({
       participants: new Types.ObjectId(userId)
     } as any)
-    .populate('participants', 'name email avatar status')
+    .populate('participants', 'name email profile')
     .populate('lastMessage')
     .sort({ updatedAt: -1 });
 
@@ -31,7 +31,7 @@ export const getConversations = async (req: AuthenticatedRequest, res: Response)
       return {
         id: conv._id.toString(),
         name: name || 'Unnamed',
-        avatar: isGroup ? undefined : participants.find((p: any) => p._id?.toString() !== userId)?.avatar,
+        avatar: isGroup ? undefined : participants.find((p: any) => p._id?.toString() !== userId)?.profile?.avatar,
         type: isGroup ? 'group' : 'dm',
         members: participants.map((p: any) => p._id?.toString?.() || p.toString()),
         lastMessage: conv.lastMessage ? {
@@ -69,13 +69,13 @@ export const createConversation = async (req: AuthenticatedRequest, res: Respons
       const existing = await Conversation.findOne({
         isGroup: false,
         participants: { $all: allParticipants, $size: 2 }
-      } as any).populate('participants', 'name email avatar status');
+      } as any).populate('participants', 'name email profile');
       if (existing) {
         const other = (existing.participants as any[]).find((p: any) => p._id.toString() !== userId);
         return res.json({
           id: existing._id.toString(),
           name: existing.name || other?.name || other?.email || 'Unknown',
-          avatar: other?.avatar,
+          avatar: other?.profile?.avatar,
           type: 'dm',
           members: (existing.participants as any[]).map((p: any) => p._id.toString()),
           unreadCount: 0,
@@ -93,7 +93,7 @@ export const createConversation = async (req: AuthenticatedRequest, res: Respons
 
     // Populate and return formatted
     const populated = await Conversation.findById(conversation._id)
-      .populate('participants', 'name email avatar status');
+      .populate('participants', 'name email profile');
     const other = !isGroup && populated
       ? (populated.participants as any[]).find((p: any) => p._id.toString() !== userId)
       : null;
@@ -101,7 +101,7 @@ export const createConversation = async (req: AuthenticatedRequest, res: Respons
     res.status(201).json({
       id: conversation._id.toString(),
       name: name || other?.name || other?.email || 'Unnamed',
-      avatar: other?.avatar,
+      avatar: other?.profile?.avatar,
       type: isGroup ? 'group' : 'dm',
       members: allParticipants.map(p => p.toString()),
       unreadCount: 0,

@@ -18,7 +18,9 @@ export const getFriends = async (req: AuthenticatedRequest, res: Response) => {
         { sender: userObjectId, status: 'accepted' },
         { receiver: userObjectId, status: 'accepted' }
       ]
-    } as any).populate('sender receiver', 'name email avatar status');
+    } as any)
+      .populate('sender', 'name email profile')
+      .populate('receiver', 'name email profile');
 
     const friends = requests.map(reqDoc => {
       const sender = reqDoc.sender as any;
@@ -29,8 +31,8 @@ export const getFriends = async (req: AuthenticatedRequest, res: Response) => {
         userId: otherUser._id.toString(),
         name: otherUser.name || otherUser.email,
         email: otherUser.email,
-        avatar: otherUser.avatar,
-        status: otherUser.status || 'offline',
+        avatar: otherUser.profile?.avatar || undefined,
+        status: 'offline',
       };
     });
 
@@ -50,7 +52,7 @@ export const getPendingRequests = async (req: AuthenticatedRequest, res: Respons
     const requests = await FriendRequest.find({
       receiver: userObjectId,
       status: 'pending'
-    } as any).populate('sender', 'name email avatar');
+    } as any).populate('sender', 'name email profile');
 
     const formatted = requests.map(r => ({
       id: r._id.toString(),
@@ -58,7 +60,7 @@ export const getPendingRequests = async (req: AuthenticatedRequest, res: Respons
         id: (r.sender as any)._id.toString(),
         name: (r.sender as any).name,
         email: (r.sender as any).email,
-        avatar: (r.sender as any).avatar,
+        avatar: (r.sender as any).profile?.avatar,
       },
       toUserId: userId,
       status: r.status,
