@@ -32,9 +32,9 @@ app.use(passport.initialize());
 
 // Add request logging middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
-  console.log(`${req.method} ${req.path}`, {
+  console.log(`[AuthService] ${req.method} ${req.path}`, {
     origin: req.get('Origin'),
-    method: req.method
+    body: req.method === 'POST' ? { ...req.body, password: '***' } : undefined
   });
   next();
 });
@@ -59,12 +59,19 @@ app.use('/api', protectedRoutes);
 app.use((req: Request, res: Response) => res.status(404).json({ error: 'Route not found' }));
 
 // Global error handler
-// app.use(errorHandler);
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('[AuthService] Global Error:', err);
+  res.status(500).json({ error: 'Internal Server Error', details: err.message });
+});
 
 // Start server
 const PORT = process.env.PORT || 4000;
 const startServer = async () => {
   try {
+    if (!process.env.JWT_SECRET) {
+        console.warn('⚠️ WARNING: JWT_SECRET is not defined in environment variables!');
+    }
+
     await initMailer({
       SMTP_HOST: process.env.SMTP_HOST ?? '',
       SMTP_PORT: Number(process.env.SMTP_PORT ?? 587),
@@ -73,9 +80,9 @@ const startServer = async () => {
       SMTP_PASS: process.env.SMTP_PASS ?? '',
       RESEND_API_KEY: process.env.RESEND_API_KEY
     });
-    // Note: connectDB ignores the passed URI and reads from process.env.MONGO_URI internally
+
     await connectDB();
-    app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+    app.listen(PORT, () => console.log(`🚀 Auth Service running on port ${PORT}`));
   } catch (err: any) {
     console.error('❌ Failed to start server:', err.message);
     process.exit(1);
