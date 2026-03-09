@@ -92,5 +92,5 @@ userSchema.methods.toSafeObject = function(this: IUser) {
 //   return this.findOne({ email: email.toLowerCase().trim() }).select("+passwordHash");
 // };
 
-const User = mongoose.model<IUser>("User", userSchema);
+const User = mongoose.models.User as mongoose.Model<IUser> || mongoose.model<IUser>("User", userSchema);
 export default User;

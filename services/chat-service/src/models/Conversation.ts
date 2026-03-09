@@ -1,4 +1,4 @@
-import { Schema, model, Document, Types } from 'mongoose';
+import mongoose, { Schema, Document, Types } from 'mongoose';
 
 export interface IConversation extends Document {
   name?: string;           // Only for Groups
@@ -16,4 +16,4 @@ const conversationSchema = new Schema<IConversation>({
   groupAdmin: { type: Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
-export const Conversation = model<IConversation>('Conversation', conversationSchema);
+export const Conversation = (mongoose.models.Conversation as mongoose.Model<IConversation>) || mongoose.model<IConversation>('Conversation', conversationSchema);

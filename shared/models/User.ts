@@ -77,6 +77,6 @@ userSchema.methods.toSafeObject = function(this: IUser) {
   };
 };
 
-const User = mongoose.model<IUser>("User", userSchema);
+const User = mongoose.models.User as mongoose.Model<IUser> || mongoose.model<IUser>("User", userSchema);
 export { User };
 // export type { IUser }; // Removed duplicate export

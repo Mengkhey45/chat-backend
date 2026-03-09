@@ -1,4 +1,4 @@
-import { Schema, model, Document, Types } from 'mongoose';
+import mongoose, { Schema, Document, Types } from 'mongoose';
 
 // 1. Define the Interface (for TypeScript safety)
 export interface IMessage extends Document {
@@ -92,4 +92,4 @@ const messageSchema = new Schema<IMessage>({
 );
 
 // 3. Create the Model
-export const Message = model<IMessage>('Message', messageSchema);
+export const Message = (mongoose.models.Message as mongoose.Model<IMessage>) || mongoose.model<IMessage>('Message', messageSchema);

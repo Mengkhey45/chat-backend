@@ -20,5 +20,6 @@ const friendRequestSchema = new Schema<IFriendRequest>({
 // Prevent duplicate requests between same users
 friendRequestSchema.index({ sender: 1, receiver: 1 }, { unique: true });
 
-const FriendRequest = model<IFriendRequest>('FriendRequest', friendRequestSchema);
+import mongoose from 'mongoose';
+const FriendRequest = mongoose.models.FriendRequest as mongoose.Model<IFriendRequest> || model<IFriendRequest>('FriendRequest', friendRequestSchema);
 export { FriendRequest };
