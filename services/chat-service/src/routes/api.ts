@@ -16,8 +16,9 @@ router.post('/conversations', conversationController.createConversation);
 // Message Routes
 router.get('/messages/:conversationId', messageController.getMessagesByConversation);
 
-// Friend Routes (assuming friendController has these)
+// Friend Routes
 router.get('/friends', friendController.getFriends);
+router.get('/friends/requests', friendController.getPendingRequests);
 router.post('/friends/request', friendController.sendFriendRequest);
 router.put('/friends/request/:requestId', friendController.handleFriendRequest);
 

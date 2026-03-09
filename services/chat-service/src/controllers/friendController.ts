@@ -34,6 +34,37 @@ export const getFriends = async (req: AuthenticatedRequest, res: Response) => {
   }
 };
 
+export const getPendingRequests = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const userObjectId = new Types.ObjectId(userId);
+
+    const requests = await FriendRequest.find({
+      receiver: userObjectId,
+      status: 'pending'
+    } as any).populate('sender', 'name email avatar');
+
+    const formatted = requests.map(r => ({
+      id: r._id.toString(),
+      fromUser: {
+        id: (r.sender as any)._id.toString(),
+        name: (r.sender as any).name,
+        email: (r.sender as any).email,
+        avatar: (r.sender as any).avatar,
+      },
+      toUserId: userId,
+      status: r.status,
+      createdAt: (r as any).createdAt,
+    }));
+
+    res.json(formatted);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch requests' });
+  }
+};
+
 export const sendFriendRequest = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { receiverEmail, receiverName, receiverId } = req.body;
