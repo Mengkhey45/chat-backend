@@ -6,6 +6,7 @@
 import bcrypt from "bcryptjs";
 import jwt, { SignOptions } from "jsonwebtoken";
 import { Request, Response } from "express";
+import { ZodError } from "zod";
 import User from "../models/user";
 import { generateNumericCode, hashCode, addMinutes } from "../utils/authUtils";
 import { 
@@ -32,6 +33,20 @@ const logSecurityCode = (type: string, email: string, code: string) => {
   console.log(`[SECURITY] ${type} for: ${email}`);
   console.log(`[SECURITY] CODE: ${code}`);
   console.log('-------------------------------------------');
+};
+
+/**
+ * Helper to handle errors uniformly
+ */
+const handleError = (res: Response, err: any, defaultMsg: string) => {
+  if (err instanceof ZodError) {
+    return res.status(400).json({ 
+      error: "Validation failed", 
+      details: err.errors.map(e => `${e.path.join('.')}: ${e.message}`) 
+    });
+  }
+  console.error(`[Auth] ${defaultMsg}:`, err);
+  res.status(500).json({ error: defaultMsg, details: err.message });
 };
 
 /**
@@ -76,8 +91,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
       note: "Please check your email or system logs for verification code."
     });
   } catch (err: any) {
-    console.error('[Signup] Error:', err.message);
-    res.status(500).json({ error: "Signup failed", details: err.message });
+    handleError(res, err, "Signup failed");
   }
 };
 
@@ -106,7 +120,7 @@ export const verifyEmail = async (req: Request, res: Response): Promise<void> =>
 
     res.json({ message: "Email verified successfully! You can now log in." });
   } catch (err: any) {
-    res.status(500).json({ error: "Verification failed." });
+    handleError(res, err, "Verification failed");
   }
 };
 
@@ -128,9 +142,13 @@ export const signin = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    if (!process.env.JWT_SECRET) {
+        throw new Error("JWT_SECRET is missing from environment variables.");
+    }
+
     const token = jwt.sign(
       { userId: user._id.toString(), email: user.email },
-      process.env.JWT_SECRET as string,
+      process.env.JWT_SECRET,
       { expiresIn: CONFIG.JWT_EXPIRES_IN } as SignOptions
     );
 
@@ -139,8 +157,7 @@ export const signin = async (req: Request, res: Response): Promise<void> => {
       user: { id: user._id.toString(), email: user.email, name: user.name } 
     });
   } catch (err: any) {
-    console.error('[Signin] Error:', err);
-    res.status(500).json({ error: "Signin failed", details: err.message });
+    handleError(res, err, "Signin failed");
   }
 };
 
@@ -175,8 +192,7 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
 
     res.json({ message: "If account exists, a reset code was sent." });
   } catch (err: any) {
-    console.error('[ForgotPassword] Error:', err);
-    res.status(500).json({ error: "Request failed", details: err.message });
+    handleError(res, err, "Forgot password failed");
   }
 };
 
@@ -205,7 +221,7 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
 
     res.json({ message: "Password reset successful! You can now log in." });
   } catch (err: any) {
-    res.status(500).json({ error: "Reset failed." });
+    handleError(res, err, "Reset failed");
   }
 };
 
@@ -244,7 +260,7 @@ export const resendVerification = async (req: Request, res: Response): Promise<v
 
     res.json({ message: "Verification code sent to your email." });
   } catch (err: any) {
-    res.status(500).json({ error: "Failed to resend code." });
+    handleError(res, err, "Resend verification failed");
   }
 };
 
