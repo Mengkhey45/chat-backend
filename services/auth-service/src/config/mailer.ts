@@ -1,5 +1,6 @@
 /**
  * Email Service Configuration
+ * Optimized for Gmail and Cloud Environments
  */
 
 import nodemailer from "nodemailer";
@@ -17,36 +18,24 @@ interface MailEnv {
 
 /**
  * Initialize the email transporter.
- * NOTE: Cloud providers like Railway often block port 465. 
- * Port 587 with SMTP_SECURE=false is recommended.
+ * Uses the 'gmail' service preset for maximum compatibility.
  */
 export const initMailer = async (env: MailEnv): Promise<void> => {
-  let port = Number(env.SMTP_PORT) || 587;
-  let isSecure = env.SMTP_SECURE === "true";
-
-  // Auto-fix: If port is 465, it MUST be secure. If 587, it MUST NOT be secure (it uses STARTTLS).
-  if (port === 465) isSecure = true;
-  if (port === 587) isSecure = false;
-
-  console.log(`[Mailer] Initializing: ${env.SMTP_HOST}:${port} (SSL/TLS: ${isSecure})`);
+  console.log(`[Mailer] Initializing for ${env.SMTP_USER} using Gmail service...`);
 
   transporter = nodemailer.createTransport({
-    host: env.SMTP_HOST,
-    port: port,
-    secure: isSecure,
+    service: 'gmail', // Standard Gmail preset
     auth: {
       user: env.SMTP_USER,
       pass: env.SMTP_PASS,
     },
-    connectionTimeout: 10000, // 10 seconds
-    greetingTimeout: 10000,
-    socketTimeout: 20000,
-    tls: {
-      rejectUnauthorized: false // Helps with self-signed certs in some environments
-    }
+    pool: true, // Use connection pooling
+    maxConnections: 3,
+    maxMessages: 100,
+    connectionTimeout: 20000, // 20 seconds
   });
 
-  console.log("📧 Email service ready");
+  console.log("📧 Email service initialized");
 };
 
 interface MailOptions {
@@ -61,7 +50,7 @@ interface MailOptions {
  */
 export const sendMail = async (options: MailOptions): Promise<SentMessageInfo> => {
   if (!transporter) {
-    throw new Error("Email service not initialized. Call initMailer first.");
+    throw new Error("Email service not initialized.");
   }
 
   const fromAddress = process.env.EMAIL_FROM || process.env.SMTP_USER;
@@ -75,16 +64,10 @@ export const sendMail = async (options: MailOptions): Promise<SentMessageInfo> =
       html: options.html,
     });
     
-    console.log(`[Mailer] SUCCESS: "${options.subject}" sent to ${options.to}`);
+    console.log(`[Mailer] SUCCESS: Email sent to ${options.to}`);
     return info;
   } catch (error: any) {
-    console.error(`[Mailer] ERROR: Failed to send to ${options.to}`);
-    console.error(`  - Message: ${error.message}`);
-    
-    if (error.code === 'ETIMEDOUT' && process.env.SMTP_PORT === '465') {
-      console.error(`  - TIP: Port 465 is timed out. PLEASE CHANGE SMTP_PORT TO 587 IN RAILWAY VARIABLES.`);
-    }
-    
+    console.error(`[Mailer] ERROR: ${error.message}`);
     throw error;
   }
 };
