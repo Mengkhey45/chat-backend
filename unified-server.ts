@@ -148,12 +148,8 @@ async function startServer() {
 
   // Socket.IO connection handler
   io.on('connection', (socket) => {
-    if (notificationQueue && redisClient) {
-      registerChatHandlers(io, socket, notificationQueue as any, redisClient);
-    } else {
-      console.warn('Socket connected but Redis/Queue unavailable — limited functionality');
-      socket.disconnect();
-    }
+    console.log(`[Socket] User connected: ${socket.data.userId}`);
+    registerChatHandlers(io, socket, notificationQueue as any, redisClient);
   });
 
   const PORT = process.env.PORT || 4000;

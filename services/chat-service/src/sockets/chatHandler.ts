@@ -2,24 +2,29 @@ import { Server, Socket } from 'socket.io';
 import { Message } from '../models/Message';
 import { Queue } from 'bullmq';
 import { Conversation } from '../models/Conversation';
+import { User } from '../../../../shared/models/User';
 import { fetchLinkPreview } from '../utils/linkPreview';
 
 export const registerChatHandlers = (
   io: Server,
   socket: Socket,
-  notificationQueue: Queue,
-  redisClient: any
+  notificationQueue: Queue | null,
+  redisClient: any | null
 ) => {
   const userId = socket.data.userId;
+
+  // Also join a personal room so we can send targeted events to this user
+  socket.join(userId);
 
   // --- JOIN ROOM ---
   socket.on('join_room', async (roomId: string) => {
     socket.join(roomId);
     try {
-      // Reset unread count for this user/room
-      await redisClient.hSet(`unread:${userId}`, roomId, 0);
-      const unreadCounts = await redisClient.hGetAll(`unread:${userId}`);
-      socket.emit('unread_counts', unreadCounts);
+      if (redisClient) {
+        await redisClient.hSet(`unread:${userId}`, roomId, 0);
+        const unreadCounts = await redisClient.hGetAll(`unread:${userId}`);
+        socket.emit('unread_counts', unreadCounts);
+      }
     } catch (err) {
       console.error("Error joining room:", err);
     }
@@ -37,6 +42,13 @@ export const registerChatHandlers = (
         linkPreview = await fetchLinkPreview(urlMatch[0]);
       }
 
+      // Look up sender's name from the database
+      let senderName = 'User';
+      try {
+        const senderUser = await User.findById(userId).select('name email').lean();
+        senderName = senderUser?.name || senderUser?.email || 'User';
+      } catch {}
+
       const newMessage = await Message.create({
         conversationId: data.conversationId,
         sender: userId,
@@ -45,11 +57,11 @@ export const registerChatHandlers = (
       });
 
       const messagePayload = {
-        id: newMessage._id,
+        id: newMessage._id.toString(),
         conversationId: data.conversationId,
         content: data.content,
         senderId: userId,
-        senderName: socket.data.name || 'User',
+        senderName,
         createdAt: newMessage.createdAt,
         isRead: false,
         linkPreview
@@ -63,19 +75,26 @@ export const registerChatHandlers = (
         lastMessage: newMessage._id
       });
 
-      // Unread badge logic
-      const conversation = await Conversation.findById(data.conversationId);
-      if (conversation) {
-        for (const participantId of conversation.participants) {
-          if (participantId.toString() !== userId.toString()) {
-            await redisClient.hIncrBy(`unread:${participantId}`, data.conversationId, 1);
-            const unreadCounts = await redisClient.hGetAll(`unread:${participantId}`);
-            io.to(participantId.toString()).emit('unread_counts', unreadCounts);
+      // Unread badge logic (only if Redis available)
+      if (redisClient) {
+        try {
+          const conversation = await Conversation.findById(data.conversationId);
+          if (conversation) {
+            for (const participantId of conversation.participants) {
+              if (participantId.toString() !== userId.toString()) {
+                await redisClient.hIncrBy(`unread:${participantId}`, data.conversationId, 1);
+                const unreadCounts = await redisClient.hGetAll(`unread:${participantId}`);
+                io.to(participantId.toString()).emit('unread_counts', unreadCounts);
+              }
+            }
           }
+        } catch (err) {
+          console.error("Unread count update failed:", err);
         }
       }
     } catch (err) {
       console.error("Failed to save/send message:", err);
+      socket.emit('message:error', { error: 'Failed to send message' });
     }
   });
 
@@ -96,12 +115,16 @@ export const registerChatHandlers = (
 
   // --- PRESENCE ---
   socket.on('presence:set', async (data: { status: string }) => {
-    await redisClient.set(`user:${userId}:status`, data.status);
+    if (redisClient) {
+      try { await redisClient.set(`user:${userId}:status`, data.status); } catch {}
+    }
     io.emit('presence:update', { userId, status: data.status });
   });
 
   socket.on('disconnect', async () => {
-    await redisClient.set(`user:${userId}:status`, 'offline');
+    if (redisClient) {
+      try { await redisClient.set(`user:${userId}:status`, 'offline'); } catch {}
+    }
     io.emit('presence:update', { userId, status: 'offline' });
   });
 };
