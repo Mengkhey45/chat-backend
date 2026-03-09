@@ -21,11 +21,17 @@ export const getFriends = async (req: AuthenticatedRequest, res: Response) => {
     } as any).populate('sender receiver', 'name email avatar status');
 
     const friends = requests.map(reqDoc => {
-      // Cast to any to access _id since it's populated
       const sender = reqDoc.sender as any;
       const receiver = reqDoc.receiver as any;
       const otherUser = sender._id.toString() === userId ? receiver : sender;
-      return otherUser;
+      return {
+        id: otherUser._id.toString(),
+        userId: otherUser._id.toString(),
+        name: otherUser.name || otherUser.email,
+        email: otherUser.email,
+        avatar: otherUser.avatar,
+        status: otherUser.status || 'offline',
+      };
     });
 
     res.json(friends);
