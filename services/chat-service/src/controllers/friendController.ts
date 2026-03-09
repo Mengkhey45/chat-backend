@@ -36,13 +36,15 @@ export const getFriends = async (req: AuthenticatedRequest, res: Response) => {
 
 export const sendFriendRequest = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { receiverEmail, receiverName } = req.body;
+    const { receiverEmail, receiverName, receiverId } = req.body;
     const senderId = req.user?.userId;
 
     if (!senderId) return res.status(401).json({ error: 'Unauthorized' });
 
     let receiver;
-    if (receiverEmail) {
+    if (receiverId) {
+      receiver = await User.findById(receiverId);
+    } else if (receiverEmail) {
       receiver = await User.findOne({ email: receiverEmail });
     } else if (receiverName) {
       receiver = await User.findOne({ name: receiverName });
