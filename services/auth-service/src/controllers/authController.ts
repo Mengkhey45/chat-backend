@@ -42,7 +42,7 @@ const handleError = (res: Response, err: any, defaultMsg: string) => {
   if (err instanceof ZodError) {
     return res.status(400).json({ 
       error: "Validation failed", 
-      details: err.errors.map(e => `${e.path.join('.')}: ${e.message}`) 
+      details: err.issues.map((e) => `${(e.path as any[]).join('.')}: ${e.message}`) 
     });
   }
   console.error(`[Auth] ${defaultMsg}:`, err);
@@ -217,6 +217,7 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
 
     user.passwordHash = await bcrypt.hash(newPassword, CONFIG.BCRYPT_SALT_ROUNDS);
     user.passwordReset = undefined;
+    user.emailVerified = true;
     await user.save();
 
     res.json({ message: "Password reset successful! You can now log in." });
