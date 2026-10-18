@@ -70,12 +70,23 @@ interface MailOptions {
  * Sends an email using the available service.
  */
 export const sendMail = async (options: MailOptions): Promise<any> => {
-  const fromEmail = process.env.EMAIL_FROM || process.env.SMTP_USER || 'onboarding@resend.dev';
+  let fromEmail = process.env.EMAIL_FROM || process.env.SMTP_USER || 'onboarding@resend.dev';
   const fromName = process.env.APP_NAME || "Chatly";
 
   // 1. Resend first — an HTTPS API, so it works on hosts that block outbound
   // SMTP ports (Railway, Vercel functions, many container platforms).
   if (resend) {
+    // Resend requires a verified domain or its test address 'onboarding@resend.dev'.
+    // If a personal webmail address (@gmail, @yahoo) is used, Resend rejects the call.
+    if (
+      fromEmail.includes('@gmail.com') ||
+      fromEmail.includes('@yahoo.com') ||
+      fromEmail.includes('@outlook.com') ||
+      fromEmail.includes('@hotmail.com')
+    ) {
+      fromEmail = 'onboarding@resend.dev';
+    }
+
     try {
       const { data, error } = await resend.emails.send({
         from: `${fromName} <${fromEmail}>`,
