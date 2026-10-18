@@ -19,5 +19,6 @@ RUN pnpm install --no-frozen-lockfile
 # Build TypeScript
 RUN pnpm run build
 
+
 EXPOSE 4000
 CMD ["pnpm", "start"]

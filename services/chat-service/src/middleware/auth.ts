@@ -6,9 +6,16 @@ export interface JWTPayload {
   email?: string;
 }
 
-export interface AuthenticatedRequest extends Request {
-  user?: JWTPayload;
+declare global {
+  namespace Express {
+    interface User {
+      userId?: string;
+      email?: string;
+    }
+  }
 }
+
+export type AuthenticatedRequest = Request;
 
 const getToken = (req: Request): string | null => {
   const authHeader = req.headers.authorization;
@@ -21,10 +28,6 @@ const getToken = (req: Request): string | null => {
 export const authMiddleware: RequestHandler = (req, res, next) => {
   const token = getToken(req as Request);
   const secret = process.env.JWT_SECRET;
-
-  console.log(`[AuthDebug] MID: ${req.method} ${req.originalUrl}`);
-  console.log(`[AuthDebug] HDR: ${req.headers.authorization ? 'YES' : 'MISSING'}`);
-  console.log(`[AuthDebug] SEC: ${secret ? `LOADED(${secret.substring(0, 3)}...)` : 'MISSING'}`);
 
   if (!token) {
     return res.status(401).json({ 
@@ -42,15 +45,20 @@ export const authMiddleware: RequestHandler = (req, res, next) => {
 
   try {
     const payload = jwt.verify(token, secret) as JWTPayload;
+    if (!payload?.userId) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
     (req as AuthenticatedRequest).user = payload;
-    console.log(`[AuthDebug] OK: ${payload.userId}`);
     next();
   } catch (err: any) {
-    console.error(`[AuthDebug] FAIL: ${err.message}`);
-    res.status(401).json({ 
-      error_source: "chat-service-middleware",
-      message: "Invalid token",
-      error: err.message
+    // The reason a token failed verification ("jwt expired" vs "invalid
+    // signature") is useful to us and useful to an attacker; log it, don't
+    // return it. Expiry is the one case worth telling the client about so the
+    // frontend can refresh rather than force a re-login.
+    console.warn(`[Auth] token rejected: ${err.name}`);
+    res.status(401).json({
+      message: "Invalid or expired token",
+      ...(err.name === 'TokenExpiredError' ? { expired: true } : {}),
     });
   }
 };

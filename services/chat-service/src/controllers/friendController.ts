@@ -202,3 +202,41 @@ export const handleFriendRequest = async (req: AuthenticatedRequest, res: Respon
     res.status(500).json({ error: 'Failed to handle request' });
   }
 };
+
+export const updatePublicKey = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { publicKey } = req.body ?? {};
+    if (!publicKey || typeof publicKey !== 'string') {
+      return res.status(400).json({ error: 'publicKey string is required' });
+    }
+    if (publicKey.length > 5000) {
+      return res.status(400).json({ error: 'publicKey is too large' });
+    }
+
+    await User.findByIdAndUpdate(userId, { publicKey });
+    res.json({ message: 'Public key updated successfully' });
+  } catch (error) {
+    console.error('[Chat] updatePublicKey failed:', error);
+    res.status(500).json({ error: 'Failed to update public key' });
+  }
+};
+
+export const getUserPublicKey = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = String(req.params.userId);
+    if (!Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ error: 'Invalid user id' });
+    }
+
+    const user = await User.findById(userId).select('publicKey').lean();
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    res.json({ userId, publicKey: (user as any).publicKey || null });
+  } catch (error) {
+    console.error('[Chat] getUserPublicKey failed:', error);
+    res.status(500).json({ error: 'Failed to fetch public key' });
+  }
+};

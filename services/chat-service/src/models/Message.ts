@@ -11,12 +11,15 @@ export interface IMessage extends Document {
   conversationId: Types.ObjectId;
   sender: Types.ObjectId;
   text: string;
+  isEncrypted?: boolean;
+  iv?: string;
   fileUrl?: string;
   fileName?: string;
   fileType?: string;
   attachments?: string[]; // Array of URLs (Cloudflare R2)
   readBy: Types.ObjectId[];
   isDeleted?: boolean;
+  hiddenFor?: Types.ObjectId[];
   deletedAt?: Date;
   deletedBy?: Types.ObjectId;
   isEdited?: boolean;
@@ -57,6 +60,13 @@ const messageSchema = new Schema<IMessage>({
     default: '',
     trim: true 
   },
+  isEncrypted: {
+    type: Boolean,
+    default: false
+  },
+  iv: {
+    type: String
+  },
   fileUrl: { type: String },
   fileName: { type: String },
   fileType: { type: String },
@@ -72,6 +82,8 @@ const messageSchema = new Schema<IMessage>({
     default: false,
     index: true
   },
+  // "Delete for me" — the message survives for everyone else.
+  hiddenFor: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   deletedAt: Date,
   deletedBy: {
     type: Schema.Types.ObjectId,
@@ -96,6 +108,10 @@ const messageSchema = new Schema<IMessage>({
   timestamps: true // 👈 Automatically adds createdAt and updatedAt
 }
 );
+
+// History is always read as "newest N in this conversation" — make that a single
+// index hit instead of a sort over every message in the conversation.
+messageSchema.index({ conversationId: 1, createdAt: -1 });
 
 // 3. Create the Model
 export const Message = (mongoose.models.Message as mongoose.Model<IMessage>) || mongoose.model<IMessage>('Message', messageSchema);

@@ -20,7 +20,11 @@ export interface IUser extends Document {
     lastName?: string;
     avatar?: string;
   };
+  publicKey?: string;
   lastLogin?: Date;
+  failedLoginAttempts?: number;
+  lockedUntil?: Date;
+  passwordChangedAt?: Date;
   createdAt?: Date;
   updatedAt?: Date;
   toSafeObject(): object;
@@ -60,7 +64,13 @@ const userSchema = new Schema<IUser>({
     lastName: String,
     avatar: String
   },
-  lastLogin: Date
+  publicKey: { type: String },
+  lastLogin: Date,
+  // Brute-force protection: consecutive failures lock the account for a
+  // growing window. Reset on any successful sign-in.
+  failedLoginAttempts: { type: Number, default: 0 },
+  lockedUntil: Date,
+  passwordChangedAt: Date
 }, { timestamps: true });
 
 userSchema.methods.toSafeObject = function(this: IUser) {
@@ -71,6 +81,7 @@ userSchema.methods.toSafeObject = function(this: IUser) {
     fullName: `${this.profile?.firstName || ""} ${this.profile?.lastName || ""}`.trim(),
     emailVerified: this.emailVerified,
     profile: this.profile,
+    publicKey: this.publicKey,
     lastLogin: this.lastLogin,
     createdAt: this.createdAt,
     updatedAt: this.updatedAt

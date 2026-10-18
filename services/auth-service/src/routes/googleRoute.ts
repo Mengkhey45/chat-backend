@@ -1,15 +1,17 @@
 import express, { Request, Response } from "express";
 import passport from "passport";
-import jwt, { SignOptions } from "jsonwebtoken";
+import { issueRefreshToken } from "../utils/tokens";
 
 const router = express.Router();
+
+const frontend = () => process.env.FRONTEND_URL || "http://localhost:3000";
 
 // Step 1: Redirect to Google login
 router.get(
   "/",
   passport.authenticate("google", {
     scope: ["profile", "email"],
-    prompt: "select_account"
+    prompt: "select_account",
   })
 );
 
@@ -18,38 +20,29 @@ router.get(
   "/callback",
   passport.authenticate("google", {
     session: false,
-    failureRedirect: `${process.env.FRONTEND_URL}/signin?error=google_auth_failed`,
+    failureRedirect: `${process.env.FRONTEND_URL}/login?error=google_auth_failed`,
   }),
-  (req: Request, res: Response) => {
+  async (req: Request, res: Response) => {
     try {
-      if (!req.user) {
-        console.error("No user in Google callback request");
-        res.send(`
-          <script>
-            window.localStorage.setItem("auth_error", "Authentication failed");
-            window.close();
-          </script>
-        `);
-        return;
+      const user = req.user as any;
+      if (!user?._id) {
+        return res.redirect(`${frontend()}/login?error=google_auth_failed`);
       }
-      const safeUser = (req.user as any).toSafeObject();
-      const token = jwt.sign(
-        safeUser,
-        process.env.JWT_SECRET as string,
-        { expiresIn: process.env.JWT_EXPIRES_IN || "7d" } as SignOptions
-      );
-      console.log("Google auth successful, sending token to frontend");
-      const frontendCallback = `${process.env.FRONTEND_URL || "http://localhost:3000"}/auth/callback`;
-      const redirectUrl = `${frontendCallback}?token=${encodeURIComponent(token)}`;
-      res.redirect(redirectUrl);
+
+      // The previous version signed the whole "safe user" object as the JWT
+      // payload, which had an `id` field but no `userId` — the key every auth
+      // middleware and the socket handshake actually read. Google sign-ins
+      // therefore produced tokens that failed every authorization check.
+      //
+      // Only the refresh cookie is set here; the frontend exchanges it for an
+      // access token. Putting a token in the redirect URL would leak it into
+      // browser history, referrer headers and any proxy log along the way.
+      await issueRefreshToken(res, req, user._id.toString());
+
+      res.redirect(`${frontend()}/auth/callback`);
     } catch (err) {
-      console.error("Google callback error:", err);
-      res.send(`
-        <script>
-          window.localStorage.setItem("auth_error", "Token generation failed");
-          window.close();
-        </script>
-      `);
+      console.error("[Auth] Google callback error:", err);
+      res.redirect(`${frontend()}/login?error=google_auth_failed`);
     }
   }
 );

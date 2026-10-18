@@ -12,6 +12,9 @@ router.use(authMiddleware);
 // Conversation Routes
 router.get('/conversations', conversationController.getConversations);
 router.post('/conversations', conversationController.createConversation);
+router.patch('/conversations/:conversationId', conversationController.updateConversation);
+router.post('/conversations/:conversationId/members', conversationController.addMembers);
+router.delete('/conversations/:conversationId/members/:memberId', conversationController.removeMember);
 
 // Message Routes
 router.get('/messages/:conversationId', messageController.getMessagesByConversation);
@@ -25,5 +28,9 @@ router.put('/friends/request/:requestId', friendController.handleFriendRequest);
 
 // User lookup
 router.get('/users/:userId', friendController.getUserPublicInfo);
+
+// End-to-End Encryption Public Keys
+router.put('/keys', friendController.updatePublicKey);
+router.get('/keys/:userId', friendController.getUserPublicKey);
 
 export default router;

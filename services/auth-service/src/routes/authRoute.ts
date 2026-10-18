@@ -30,6 +30,7 @@ router.post("/verify-email", verificationLimiter, authController.verifyEmail);
 router.post("/resend-verification", verificationLimiter, authController.resendVerification);
 router.post("/forgot-password", strictLimiter, authController.forgotPassword);
 router.post("/reset-password", strictLimiter, authController.resetPassword);
+router.post("/refresh", authController.refresh);
 router.post("/logout", authController.logout);
 
 export default router;
