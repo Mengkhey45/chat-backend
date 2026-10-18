@@ -143,6 +143,7 @@ const authLimiter = rateLimit({
 });
 
 // ======== HEALTH CHECK ========
+app.get('/', (_req, res) => res.json({ status: 'ok', message: 'Chatly Backend API is running', service: 'unified-server' }));
 app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'unified-server' }));
 
 // ======== AUTH SERVICE ROUTES ========
